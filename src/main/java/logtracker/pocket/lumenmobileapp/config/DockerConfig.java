@@ -25,6 +25,7 @@ public class DockerConfig {
 
         String[] hostsToTry = {
                 dockerHost,
+                "unix:///var/run/docker.sock",
                 "npipe:////./pipe/docker_engine",
                 "tcp://localhost:2375"
         };
