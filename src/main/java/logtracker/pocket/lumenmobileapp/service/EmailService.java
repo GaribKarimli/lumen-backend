@@ -26,6 +26,7 @@ public class EmailService {
 
 
     public void sendHtmlEmail(String to, String subject, String templateName, Map<String, Object> variables) {
+        log.info("Attempting to send email to {} with subject: {}", to, subject);
         try {
             Context context = new Context();
             if (variables != null) {
@@ -42,9 +43,11 @@ public class EmailService {
             helper.setText(htmlContent, true);
 
             mailSender.send(message);
-            log.info("Email sent to {} with subject: {}", to, subject);
+            log.info("Email successfully sent to {} with subject: {}", to, subject);
         } catch (MessagingException e) {
             log.error("Failed to send email to {}: {}", to, e.getMessage());
+        } catch (Exception e) {
+            log.error("Unexpected error sending email to {}: {}", to, e.getMessage(), e);
         }
     }
 }

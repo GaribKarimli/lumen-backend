@@ -68,11 +68,13 @@ public class AlertService {
      */
     @Scheduled(fixedRate = 1, timeUnit = TimeUnit.MINUTES)
     public void monitorAllContainers() {
-        log.debug("Background monitoring started...");
+        log.info("Background monitoring started... Checking containers.");
         try {
             List<Container> containers = dockerClient.listContainersCmd()
                     .withStatusFilter(Collections.singleton("running"))
                     .exec();
+
+            log.info("Found {} running containers to monitor.", containers.size());
 
             for (Container container : containers) {
                 String containerId = container.getId();
@@ -85,10 +87,19 @@ public class AlertService {
                         @Override
                         public void onNext(Statistics stats) {
                             double cpuUsage = calculateCpuUsage(stats);
+                            log.info("Stats received for {}: CPU Calculated = {}%", containerName, String.format("%.2f", cpuUsage));
+                            
                             if (cpuUsage > 0) {
                                 checkStats(containerId, containerName, cpuUsage, null);
+                            } else {
+                                log.info("CPU usage is 0 or invalid for {}. Stats: {}", containerName, stats != null ? "present" : "null");
                             }
                             try { close(); } catch (Exception ignored) {}
+                        }
+
+                        @Override
+                        public void onError(Throwable throwable) {
+                            log.error("Error receiving stats for {}: {}", containerName, throwable.getMessage());
                         }
                     });
                 } catch (Exception e) {
@@ -102,6 +113,7 @@ public class AlertService {
 
     private double calculateCpuUsage(Statistics stats) {
         if (stats == null || stats.getCpuStats() == null || stats.getPreCpuStats() == null) {
+            log.debug("Stats missing CPU info");
             return 0.0;
         }
 
@@ -110,6 +122,7 @@ public class AlertService {
             stats.getPreCpuStats().getCpuUsage() == null ||
             stats.getCpuStats().getSystemCpuUsage() == null ||
             stats.getPreCpuStats().getSystemCpuUsage() == null) {
+            log.debug("Stats missing nested CPU usage info");
             return 0.0;
         }
 
@@ -127,7 +140,7 @@ public class AlertService {
     }
 
     public void checkStats(String containerId, String containerName, double cpuUsage, String overrideEmail) {
-        log.debug("Checking stats for {}: CPU {}% (Threshold: {}%)", containerName, String.format("%.2f", cpuUsage), cpuThreshold);
+        log.info("Checking stats for {}: CPU {}% (Threshold: {}%)", containerName, String.format("%.2f", cpuUsage), cpuThreshold);
         if (cpuUsage > cpuThreshold) {
             triggerAlert(containerId, containerName, "CPU", cpuUsage, overrideEmail);
         }
@@ -181,7 +194,7 @@ public class AlertService {
                 log.info("Notification skipped: Global notifications are disabled");
             }
         } else {
-            log.debug("Alert cooldown active for container {}: {}", containerName, type);
+            log.info("Alert cooldown active for container {}: {}", containerName, type);
         }
     }
 }

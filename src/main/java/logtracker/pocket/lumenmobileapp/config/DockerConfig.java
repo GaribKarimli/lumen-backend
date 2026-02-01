@@ -5,6 +5,7 @@ import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.zerodep.ZerodepDockerHttpClient;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -12,11 +13,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class DockerConfig {
 
+    @Value("${docker.host}")
+    private String dockerHost;
+
     @Bean
     public DockerClient dockerClient() {
         log.info("Establishing Docker connection...");
-
-        String dockerHost = System.getenv().getOrDefault("DOCKER_HOST", "unix:///var/run/docker.sock");
         log.info("Docker host: {}", dockerHost);
 
         try {

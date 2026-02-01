@@ -30,8 +30,8 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - NOTIFICATION_ENABLED=true
       - NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL}
-      - ALERT_CPU_THRESHOLD=80.0
-      - ALERT_COOLDOWN_MINUTES=10
+      - ALERT_CPU_THRESHOLD=${ALERT_CPU_THRESHOLD}
+      - ALERT_COOLDOWN_MINUTES=${ALERT_COOLDOWN_MINUTES}
       - PORT=8324
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/lumen_db
       - SPRING_DATASOURCE_USERNAME=lumen_user
@@ -89,20 +89,18 @@ services:
 
   # Mock Log Generator 1 - High CPU
   log-cpu-heavy:
-    image: busybox:latest
+    image: alpine:latest
     container_name: log-cpu-heavy
     restart: unless-stopped
     command: >
       sh -c "
-      while true; do
-        echo '[$(date)] [ERROR] High CPU usage detected! Current: 95%';
-        echo '[$(date)] [WARN] Service response time: 2.5s';
-        dd if=/dev/zero of=/dev/null bs=1M count=100 2>/dev/null;
-        sleep 5;
-      done
+      apk add --no-cache stress-ng >/dev/null;
+      echo 'CPU load ~20% started';
+      stress-ng --cpu 1 --cpu-load 20 --cpu-method all
       "
     networks:
       - lumen-network
+
 
   # Mock Log Generator 2 - Normal App
   log-app-server:
