@@ -3,66 +3,43 @@ package logtracker.pocket.lumenmobileapp.config;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
-import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
-import com.github.dockerjava.transport.DockerHttpClient;
+import com.github.dockerjava.zerodep.ZerodepDockerHttpClient;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.time.Duration;
 
 @Slf4j
 @Configuration
 public class DockerConfig {
 
-    @Value("${docker.host}")
-    private String dockerHost;
-
     @Bean
     public DockerClient dockerClient() {
-        log.info("Establishing Docker connection. Provided host: {}", dockerHost);
+        log.info("Establishing Docker connection...");
 
+        String dockerHost = System.getenv().getOrDefault("DOCKER_HOST", "unix:///var/run/docker.sock");
+        log.info("Docker host: {}", dockerHost);
 
-        String host=dockerHost;
+        try {
+            var config = DefaultDockerClientConfig.createDefaultConfigBuilder()
+                    .withDockerHost(dockerHost)
+                    .build();
 
-            try {
-                log.info("Attempting to connect to Docker at: {}", host);
+            var httpClient = new ZerodepDockerHttpClient.Builder()
+                    .dockerHost(config.getDockerHost())
+                    .build();
 
-                DefaultDockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder()
-                        .withDockerHost(host)
-                        .build();
+            var client = DockerClientImpl.getInstance(config, httpClient);
 
-                DockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
-                        .dockerHost(config.getDockerHost())
-                        .sslConfig(config.getSSLConfig())
-                        .maxConnections(100)
-                        .connectionTimeout(Duration.ofSeconds(3))
-                        .responseTimeout(Duration.ofSeconds(5))
-                        .build();
+            log.info("Testing Docker connection...");
+            client.pingCmd().exec();
+            log.info(" Docker connected successfully!");
 
-                DockerClient client = DockerClientImpl.getInstance(config, httpClient);
+            return client;
 
-                // Ping test
-                log.info("Pinging Docker Engine...");
-                client.pingCmd().exec();
-
-                log.info("Docker connection established successfully! Using host: {}", host);
-                return client;
-            } catch (Exception e) {
-                log.warn("Host {} failed: {}", host, e.getMessage());
-            }
-
-
-        log.error("SOLUTION: Unable to connect to Docker via any method!");
-        log.error("1. Make sure Docker Desktop is running.");
-        log.error("2. If using TCP, enable 'Expose daemon on tcp://localhost:2375' in Docker Settings -> General.");
-        log.error("3. If using Named Pipe, run the application as Administrator.");
-
-        // Return a dummy client to allow context load, but it will fail on calls
-        return DockerClientImpl.getInstance(
-                DefaultDockerClientConfig.createDefaultConfigBuilder().withDockerHost(dockerHost).build(),
-                new ApacheDockerHttpClient.Builder().dockerHost(java.net.URI.create("tcp://localhost:2375")).build()
-        );
+        } catch (Exception e) {
+            log.error("Docker connection failed: {}", e.getMessage());
+            log.error("Socket path: {}", dockerHost);
+            throw new IllegalStateException("Cannot start without Docker: " + dockerHost, e);
+        }
     }
 }

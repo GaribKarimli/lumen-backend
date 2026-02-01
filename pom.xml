@@ -39,7 +39,7 @@
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
 
-        <!-- Docker Java Client -->
+        <!-- Docker Java Client with ZeroDep transport for Unix socket support -->
         <dependency>
             <groupId>com.github.docker-java</groupId>
             <artifactId>docker-java-core</artifactId>
@@ -47,7 +47,7 @@
         </dependency>
         <dependency>
             <groupId>com.github.docker-java</groupId>
-            <artifactId>docker-java-transport-httpclient5</artifactId>
+            <artifactId>docker-java-transport-zerodep</artifactId>
             <version>3.4.0</version>
         </dependency>
 
