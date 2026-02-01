@@ -23,16 +23,8 @@ public class DockerConfig {
     public DockerClient dockerClient() {
         log.info("Establishing Docker connection. Provided host: {}", dockerHost);
 
-        // Prioritize unix socket for Linux environments
-        String[] hostsToTry = {
-                "unix:///var/run/docker.sock",
-                dockerHost,
-                "npipe:////./pipe/docker_engine",
-                "tcp://localhost:2375"
-        };
 
-        for (String host : hostsToTry) {
-            if (host == null || host.isEmpty()) continue;
+        String host=dockerHost;
 
             try {
                 log.info("Attempting to connect to Docker at: {}", host);
@@ -60,7 +52,7 @@ public class DockerConfig {
             } catch (Exception e) {
                 log.warn("Host {} failed: {}", host, e.getMessage());
             }
-        }
+
 
         log.error("SOLUTION: Unable to connect to Docker via any method!");
         log.error("1. Make sure Docker Desktop is running.");
