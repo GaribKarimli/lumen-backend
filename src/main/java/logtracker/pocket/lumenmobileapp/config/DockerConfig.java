@@ -23,9 +23,10 @@ public class DockerConfig {
     public DockerClient dockerClient() {
         log.info("Establishing Docker connection. Provided host: {}", dockerHost);
 
+        // Prioritize unix socket for Linux environments
         String[] hostsToTry = {
-                dockerHost,
                 "unix:///var/run/docker.sock",
+                dockerHost,
                 "npipe:////./pipe/docker_engine",
                 "tcp://localhost:2375"
         };
