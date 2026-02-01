@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -82,8 +83,9 @@ public class AlertService {
                 
                 // Get a snapshot of statistics for each container
                 try {
-                    // statsCmd(...).exec() returns a ResultCallback, we use another way for sync
-                    dockerClient.statsCmd(containerId).exec(new com.github.dockerjava.api.async.ResultCallback.Adapter<Statistics>() {
+                    CountDownLatch latch = new CountDownLatch(1);
+                    // statsCmd(...).exec() returns a ResultCallback
+                    dockerClient.statsCmd(containerId).withNoStream(true).exec(new com.github.dockerjava.api.async.ResultCallback.Adapter<Statistics>() {
                         @Override
                         public void onNext(Statistics stats) {
                             double cpuUsage = calculateCpuUsage(stats);
@@ -94,14 +96,24 @@ public class AlertService {
                             } else {
                                 log.info("CPU usage is 0 or invalid for {}. Stats: {}", containerName, stats != null ? "present" : "null");
                             }
-                            try { close(); } catch (Exception ignored) {}
+                            latch.countDown();
                         }
 
                         @Override
                         public void onError(Throwable throwable) {
                             log.error("Error receiving stats for {}: {}", containerName, throwable.getMessage());
+                            latch.countDown();
+                        }
+                        
+                        @Override
+                        public void onComplete() {
+                            latch.countDown();
                         }
                     });
+                    
+                    // Wait for stats to be received (timeout after 5 seconds)
+                    latch.await(5, TimeUnit.SECONDS);
+
                 } catch (Exception e) {
                     log.warn("Failed to get stats for container {}: {}", containerName, e.getMessage());
                 }
